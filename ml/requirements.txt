@@ -1,0 +1,14 @@
+# Local (CPU) environment. On Colab, only `ultralytics` needs installing.
+# Install CPU-only torch first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+ultralytics>=8.3
+pyyaml
+pandas
+opencv-python
+matplotlib
+gdown
+
+# Demo portal backend
+fastapi
+uvicorn[standard]
+python-multipart

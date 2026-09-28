@@ -1,0 +1,18 @@
+{
+  "name": "pothole_v1",
+  "architecture": "YOLO11s, single class \"pothole\", 1024 px, 640 px tiles for large frames",
+  "trained_on": "dataset pothole_v2: UAPD, UAV-PDD2023, top-down drone set (GitHub), street photos (Roboflow, train only)",
+  "full_frame": {
+    "note": "22 test-only 4K drone frames, 78 labelled potholes (step S1-23)",
+    "rows": [
+      {"threshold": 0.15, "found": 0.82, "false_pins_per_frame": 6.5},
+      {"threshold": 0.30, "found": 0.77, "false_pins_per_frame": 3.0},
+      {"threshold": 0.40, "found": 0.69, "false_pins_per_frame": 1.5}
+    ]
+  },
+  "weaknesses": [
+    "Lane markings, roadside grass and wide dark cracks are sometimes flagged",
+    "UAV-PDD2023's tiny speck labels are missed (mAP50 0.03)",
+    "Public datasets define \"pothole\" differently; own drone photos are the next step"
+  ]
+}

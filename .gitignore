@@ -1,0 +1,30 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Datasets (large, re-creatable from the prep scripts)
+data/raw/
+data/prepared/
+data/merged/
+*.zip
+dist/
+
+# Demo portal: generated samples / detection cache / frontend build
+app/samples/
+app/.cache/
+app/frontend/node_modules/
+app/frontend/dist/
+
+# Training outputs and weights
+runs/
+*.pt
+*.onnx
+# ...except the final Sprint 1 model, so predict.py and the demo portal work after cloning
+!models/pothole_v1/weights/best.pt
+
+# Claude Code local state
+.claude/scheduled_tasks.lock
+
+# Ultralytics label caches (generated, contain local paths)
+*.cache

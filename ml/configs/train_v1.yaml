@@ -1,0 +1,23 @@
+# Pothole detector v1 — baseline training config (Ultralytics train() arguments).
+# Any key here can be overridden on the command line, e.g. --set model=yolo11m.pt epochs=150
+model: yolo11s.pt
+imgsz: 1024              # tiles are 640 px; upscaling helps small potholes (runs 2-3 use 1024)
+epochs: 150              # run 1 was still improving at epoch 79
+patience: 40             # early stop if val mAP doesn't improve for 40 epochs
+batch: 16                # fits a T4 at 1024 px
+seed: 0
+cos_lr: true
+
+# Augmentation: top-down view has no "up", so vertical flips and rotations are valid.
+fliplr: 0.5
+flipud: 0.5
+degrees: 15
+mosaic: 1.0
+close_mosaic: 10
+hsv_h: 0.015
+hsv_s: 0.5
+hsv_v: 0.4               # lighting / shadows vary a lot between flights
+
+project: runs
+name: pothole_v2_s1024
+exist_ok: false
