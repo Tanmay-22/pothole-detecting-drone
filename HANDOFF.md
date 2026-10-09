@@ -141,7 +141,6 @@ Open points to raise with the user:
   re-measure on real photos. Without it sizes are +45 % and nearly all potholes are "high".
 - Threshold 0.30 finds 37/45 on synthetic, 0.15 finds 42/45 (no false ones there, but real roads differ).
 - Still undecided: camera model, flight controller (→ mission export GeoJSON / QGC .plan in the planner).
-- PLAN.md's old Sprint 2 section ends with stray Sprint 1 notes (below S2-10) that belong under S1-22.
 
 Possible next work (ask the user): Sprint 2 proper (much of S2-01…S2-08 now exists in `geo/`; remaining:
 Pi capture skeleton with a simulate mode, tilt/lens handling, real telemetry reader once the flight

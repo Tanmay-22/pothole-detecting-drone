@@ -139,9 +139,18 @@ To resume in a new session: open this file, find the first unchecked step, and c
 - [x] S1-23 Final inference check + README. README commands verified as written (predict uses 0.30
       from threshold.txt; smoke train OK; local evaluate reproduces Colab exactly: mAP50 0.3917).
       Note: `evaluate.py` still *suggests* a recall-first threshold (0.05); the shipped one is 0.30.
+      Full 4K frames (22 test-only luis frames, 78 potholes) showed many more false pins than tile
+      stats: 0.15 → 11.6 false pins/frame, about half being duplicate fragments across overlapping
+      tiles → **`predict.py` now merges boxes that mostly overlap** (intersection ≥ 50% of the smaller
+      box). After merging: @0.15 82% found / 6.5 false pins per frame · **@0.30 77% / 3.0** · @0.40
+      69% / 1.5. **User set threshold 0.30** (was 0.15). Model also finds synthetic potholes (124 of
+      139 at 0.15). CPU speed ≈ 18 s per 4K frame. `README.md` written (setup, predict, pipeline,
+      train/eval, results, weaknesses: lane markings, grass, wide dark cracks).
+      → Sprint 2 idea: confirm a pothole only if detected in ≥ 2 consecutive frames at the same spot.
 
-**Sprint 1 complete (2026-09-28).** Next: Sprint 2 (capture & geolocation) — first ask camera model,
-flight altitude and flight controller; break it into small serial steps like Sprint 1.
+**Sprint 1 complete (2026-09-28).** Since then: demo portal (below), dashboard demo website with a
+first-cut geolocation pipeline (below, W-01…W-10). Sprint 2 status and remaining work: see the
+Sprint 2 section and HANDOFF.md §9.
 
 ### Sprint 1 demo portal (requested 2026-09-28)
 Decisions: live local app (FastAPI + React, the future dashboard stack); main page = "Try it: upload &
@@ -277,10 +286,12 @@ each frame's timestamp. Synthetic set is at `data/synthetic_geotagged_potholes/s
 
 ---
 
-## Sprint 2 — Capture & geolocation (proposed 2026-09-28 — **ON HOLD: user said "don't do sprint 2"**)
+## Sprint 2 — Capture & geolocation (proposed 2026-09-28; sprint not started as such)
 
-Not started. Only recorded here for later. User's severity choice if resumed: **diameter + confidence**
-(size sets low / medium / high; low-confidence detections marked "unverified").
+History: on 2026-09-28 the user declined to start Sprint 2 as proposed. The **dashboard demo website
+(W-01…W-10, 2026-09-29) then built a first cut of most of it in `geo/`**: S2-01…S2-08 below are covered
+by W-01…W-04 (marked "via W-xx"). Severity = **diameter + confidence** (user's choice), as implemented
+in `geo/cluster.py`. What remains is listed under S2-10; ask the user before doing any of it.
 
 Goal: turn detections in drone frames into **one record per real pothole**: lat/lon, size in metres,
 severity, confidence, frames seen, time, best photo crop — the data the dashboard will show.
@@ -297,42 +308,38 @@ radius would wrongly join them; tune the radius on measured error instead.**
 Assumptions: camera points straight down (no tilt correction yet), no lens distortion (config
 placeholder for later).
 
-- [ ] S2-01 Flight-folder format + config: define `flight/` = images/ + frames.csv (frame, timestamp)
+- [x] S2-01 *(via W-01: `geo/flight.py`, `geo/config.yaml`, `web/data/flights/synthetic_001`)* Flight-folder format + config: define `flight/` = images/ + frames.csv (frame, timestamp)
       + telemetry.csv; `geo/config.yaml` (camera HFOV, image orientation, merge radius, min frames,
       severity thresholds). Convert the synthetic set into this format (`flights/synthetic_001/`).
       Check: loader reads 240 frames + 600 telemetry rows.
-- [ ] S2-02 Telemetry interpolation (`geo/telemetry.py`): position / altitude / heading at any
+- [x] S2-02 *(via W-02: in `geo/geolocate.py`, smoothed)* Telemetry interpolation (`geo/telemetry.py`): position / altitude / heading at any
       timestamp (heading interpolated on the circle). Check: vs the true frame centres in
       frames.csv, median error ≈ GPS noise (< 0.5 m).
-- [ ] S2-03 Pixel → ground projection (`geo/project.py`): box centre → lat/lon using altitude, HFOV,
+- [x] S2-03 *(via W-02: `box_to_ground` in `geo/geolocate.py`; true positions → median 0.04 m)* Pixel → ground projection (`geo/project.py`): box centre → lat/lon using altitude, HFOV,
       heading; box size → metres. Check with **ground-truth boxes + true frame positions**:
       median location error < 0.2 m, size error small (proves the maths).
-- [ ] S2-04 Same with **noisy telemetry**: measure per-detection location error (expected ~0.3-0.5 m).
-- [ ] S2-05 Merge detections into potholes (`geo/cluster.py`): group across frames within a radius
+- [x] S2-04 *(via W-02: smoothed telemetry → median 0.20 m, max 0.81 m)* Same with **noisy telemetry**: measure per-detection location error (expected ~0.3-0.5 m).
+- [x] S2-05 *(via W-03: radius 1.0 m, ≥ 2 frames → 45/45 on ground-truth boxes)* Merge detections into potholes (`geo/cluster.py`): group across frames within a radius
       (chosen from S2-04 errors, < 1.34 m), average position, median size, max confidence; keep
       only potholes seen in ≥ 2 frames. Check with ground-truth boxes: **45 records**, each matching
       one true pothole.
-- [ ] S2-06 Severity + record fields: diameter & area (m²), severity (low / medium / high by size,
+- [x] S2-06 *(via W-03/W-04: diameter + confidence severity, crops)* Severity + record fields: diameter & area (m²), severity (low / medium / high by size,
       thresholds in config), confidence, frames seen, first/last time, best frame; save a photo crop
       per pothole. Check: fields filled for all 45.
-- [ ] S2-07 End-to-end CLI `geo/process_flight.py`: flight folder → run detector (predict.py
+- [x] S2-07 *(via W-04)* End-to-end CLI `geo/process_flight.py`: flight folder → run detector (predict.py
       detect_raw + merge at the model threshold) → geolocate → merge → `potholes.json`, `.csv`,
       `.geojson` + crops/. Check: runs on synthetic_001.
-- [ ] S2-08 Evaluate on synthetic with the **real detector**: match to true potholes (≤ 1 m):
+- [x] S2-08 *(via W-04: @0.30 37/45 found, 0 false, median 0.10 m; `result/eval_map.png`)* Evaluate on synthetic with the **real detector**: match to true potholes (≤ 1 m):
       found / missed / false potholes, location error, size error; compare thresholds; check the
       ≥ 2-frames rule removes most false pins. Plot map of true vs found (PNG).
 - [ ] S2-09 Pi capture design (no hardware): `pi/capture.py` skeleton (picamera2 photos + timestamps
       + telemetry logging) with a `--simulate` mode that writes a flight folder from the synthetic
       set; document what's needed when hardware arrives. Check: simulate mode output passes S2-07.
 - [ ] S2-10 Docs: README section, HANDOFF.md, this checklist; ask user about commit/push.
-      Full 4K frames (22 test-only luis frames, 78 potholes) showed many more false pins than tile
-      stats: 0.15 → 11.6 false pins/frame, about half being duplicate fragments across overlapping
-      tiles → **`predict.py` now merges boxes that mostly overlap** (intersection ≥ 50% of the smaller
-      box). After merging: @0.15 82% found / 6.5 false pins per frame · **@0.30 77% / 3.0** · @0.40
-      69% / 1.5. **User set threshold 0.30** (was 0.15). Model also finds synthetic potholes (124 of
-      139 at 0.15). CPU speed ≈ 18 s per 4K frame. `README.md` written (setup, predict, pipeline,
-      train/eval, results, weaknesses: lane markings, grass, wide dark cracks).
-      → Sprint 2 idea: confirm a pothole only if detected in ≥ 2 consecutive frames at the same spot.
+
+Remaining Sprint 2 work (not started — ask the user first): S2-09 Pi capture skeleton with a simulate
+mode; camera tilt / lens-distortion handling; a real telemetry reader once the flight controller is
+chosen; re-measure `detector.box_scale` (0.75, calibrated on the synthetic flight itself) on real photos.
 
 ---
 
