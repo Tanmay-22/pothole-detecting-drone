@@ -3,9 +3,15 @@
   "configurations": [
     {
       "name": "demo-portal",
-      "runtimeExecutable": "E:\\ProjectsE\\Potholes detecting drone\\.venv\\Scripts\\python.exe",
+      "runtimeExecutable": "E:/ProjectsE/Potholes detecting drone/.venv/Scripts/python.exe",
       "runtimeArgs": ["app/backend/main.py"],
       "port": 8000
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "E:/ProjectsE/Potholes detecting drone/.venv/Scripts/python.exe",
+      "runtimeArgs": ["web/backend/main.py"],
+      "port": 8001
     }
   ]
 }

@@ -28,3 +28,8 @@ runs/
 
 # Ultralytics label caches (generated, contain local paths)
 *.cache
+
+# Demo website: flight folders (images + results), frontend deps/build
+web/data/
+web/frontend/node_modules/
+web/frontend/dist/

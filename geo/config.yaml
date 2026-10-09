@@ -1,0 +1,24 @@
+# Geolocation settings (demo website + later Sprint 2). Camera model is not decided yet:
+# these defaults match the synthetic flight (82 deg HFOV, 8.6 m). A flight's flight.json can override "camera".
+camera:
+  hfov_deg: 82.0          # horizontal field of view (across the image width)
+
+telemetry:
+  smooth_s: 1.0           # moving-average window over GPS / heading samples (0 = off)
+
+detector:
+  model: models/pothole_v1/weights/best.pt
+  conf: 0.30              # shipped threshold (models/pothole_v1/threshold.txt)
+  box_scale: 0.75         # detector boxes include a margin around the pothole: sizes are multiplied by this.
+                          # Measured on the SYNTHETIC flight only (detector box side = 1.33 x label box);
+                          # re-measure on real drone photos (Sprint 5). 1.0 = raw box size.
+
+merge:
+  radius_m: 1.0           # detections of one pothole across frames must lie within this distance
+  min_frames: 2           # confirm a pothole only if seen in at least this many frames
+  edge_px: 4              # boxes touching the frame edge are cut off: not used for size
+
+severity:                 # by diameter (longest side of the box, metres)
+  medium_m: 0.6
+  high_m: 0.9
+  unverified_below_conf: 0.45   # best confidence below this -> flagged "unverified"

@@ -1,6 +1,7 @@
 # HANDOFF — Pothole-detecting drone (read this first in a new session)
 
-Last updated: **2026-09-28**. Status: **Sprint 1 complete + demo portal complete. Sprint 2 not started.**
+Last updated: **2026-09-29**. Status: **Sprint 1 complete + demo portal complete + dashboard demo website complete
+(W-01…W-10). Sprint 2 (real capture + geolocation hardening) not started.**
 Detailed step-by-step history with every number: [PLAN.md](PLAN.md) (Progress section at the top).
 How to run things: [README.md](README.md).
 
@@ -30,7 +31,7 @@ Sprints (Sprint 1 done; the rest are the roadmap):
 - **Ask before any download** (state file, source, size) — datasets, weights, pip/npm packages.
 - Ask questions before planning a new sprint or feature; the user likes to choose between options.
 - Report results honestly (targets missed, caveats); the user makes the accept / retrain calls.
-- Don't commit to git unless asked (repo initialised, **no commits yet**).
+- Don't commit to git unless asked (Sprint 1 + demo portal pushed as commit 676e25e to github.com/Tanmay-22/pothole-detecting-drone; the dashboard work is not committed yet).
 
 ## 3. Decisions already made (don't re-ask)
 
@@ -62,7 +63,7 @@ Project root: **`E:\ProjectsE\Potholes detecting drone`** (moved from D:\Project
 | `data/raw/` | uav_pdd2023, uapd, highrpd (zips + extracted), luis_drone (111 4K PNGs + `segments.json`), roboflow_drone1 |
 | `data/prepared/*_yolo` | Converted sources (neg-ratio 5) |
 | `data/merged/pothole_v2` | **Dataset used by the final model** (rebuild command in PLAN.md S1-21i); `pothole_v1` = old dataset; `synthetic_smoke` = CPU smoke-test config |
-| `data/synthetic_geotagged_potholes/` | Synthetic 240 frames + telemetry.csv, frames.csv, potholes_ground_truth.csv, detections_ground_truth.csv → **use for Sprint 2 geolocation tests** (8.6 m altitude, 82° HFOV, 2.34 cm/px, top of image = north) |
+| `data/synthetic_geotagged_potholes/synthetic_geotagged_potholes/` | Synthetic 240 frames + telemetry.csv, frames.csv, potholes_ground_truth.csv, detections_ground_truth.csv → **use for Sprint 2 geolocation tests** (8.6 m altitude, 82° HFOV, 2.34 cm/px, top of image = north) |
 | `models/pothole_v1/` | **Final model** (read-only): weights/best.pt, threshold.txt (0.30), eval/metrics*.json, README.txt, SHA256SUMS.txt |
 | `models/pothole_v2_s1024/` | Colab run 3 (source of the final model) |
 | `models/backup/pothole_v1_s1024_2026-09-25/` | Backup of run 2 (read-only) |
@@ -71,10 +72,16 @@ Project root: **`E:\ProjectsE\Potholes detecting drone`** (moved from D:\Project
 | `app/frontend/` | React 19 + Vite 8 UI (`src/App.jsx`, `src/detections.js` = JS port of threshold/merge/match) |
 | `app/make_samples.py` | Builds `app/samples/` (9 test-split samples + ground truth) |
 | `dist/` | Colab upload zips (pothole_v2.zip, ml_code.zip; old pothole_v1.zip) |
-| `.claude/launch.json` | Preview server config "demo-portal" |
+| `.claude/launch.json` | Preview server configs "demo-portal" (:8000) and "dashboard" (:8001) |
+| `geo/` | **Geolocation (dashboard demo, first cut of Sprint 2):** `flight.py` (flight folder format + loader), `geolocate.py` (telemetry smoothing/interpolation, box → lat/lon + metres), `cluster.py` (merge across frames, severity), `process_flight.py` (flight → detector → potholes.json/.geojson/.csv + crops), `eval_synthetic.py` (accuracy vs synthetic ground truth), `config.yaml` (camera HFOV, smoothing, conf 0.30, box_scale 0.75, merge 1.0 m / ≥ 2 frames, severity 0.6 / 0.9 m) |
+| `web/backend/main.py` | Dashboard API on :8001 (flights, potholes, crops, zip upload → background job, progress) + serves built UI |
+| `web/frontend/` | Dashboard UI (React 19 + Vite 8 + Leaflet 1.9.4 / react-leaflet 5): `Planner.jsx`, `ResultsMap.jsx`, `Flights.jsx`, `BaseMap.jsx` |
+| `web/tools/make_synthetic_flight.py` | Builds `web/data/flights/synthetic_001` + `dist/synthetic_flight_001.zip` (upload demo) |
+| `web/data/flights/<id>/` | Flight folders (gitignored): images/, frames.csv, telemetry.csv, flight.json, result/ |
 
 Gitignored (regenerable, large): data/raw, data/prepared, data/merged, runs/, dist/, *.pt, *.zip,
-app/samples, app/.cache, app/frontend/node_modules, app/frontend/dist.
+app/samples, app/.cache, app/frontend/node_modules, app/frontend/dist, web/data, web/frontend/node_modules,
+web/frontend/dist.
 
 ## 5. How to run
 
@@ -85,6 +92,11 @@ app/samples, app/.cache, app/frontend/node_modules, app/frontend/dist.
 .venv\Scripts\python.exe app/backend/main.py
 # Rebuild portal UI after editing app/frontend/src
 cd app/frontend && npm run build
+# Dashboard demo → http://127.0.0.1:8001 (or preview_start "dashboard"); rebuild UI: cd web/frontend && npm run build
+.venv\Scripts\python.exe web/backend/main.py
+# Process a flight folder / evaluate on the synthetic ground truth
+.venv\Scripts\python.exe geo/process_flight.py web/data/flights/synthetic_001
+.venv\Scripts\python.exe geo/eval_synthetic.py flight      # also: boxes, clusters
 ```
 
 ## 6. Sprint 1 results (final model `models/pothole_v1`)
@@ -120,12 +132,21 @@ cd app/frontend && npm run build
 
 ## 9. Next step
 
-Start **Sprint 2 (capture & geolocation)**:
-1. Ask the user: Pi camera model, flight altitude, flight controller (and GPS / telemetry source).
-2. Propose a plan as small serial steps (S2-01 …) and add it to PLAN.md; get approval.
-3. Likely first steps: a geolocation module that turns `predict.py` detections + frame telemetry into
-   lat/lon and size in metres, validated on `data/synthetic_geotagged_potholes` (ground-truth CSVs),
-   then multi-frame confirmation / 2 m de-duplication (the synthetic set should end with 45 potholes).
+**Dashboard demo website done (2026-09-29)** — plan and results in PLAN.md ("Demo website", W-01…W-10).
+Synthetic flight: 37 of 45 potholes found at 0.30, 0 false, location error median 0.10 m.
+Nothing is committed yet (ask the user before committing / pushing).
+
+Open points to raise with the user:
+- `detector.box_scale 0.75` in geo/config.yaml was calibrated on the same synthetic flight (circular);
+  re-measure on real photos. Without it sizes are +45 % and nearly all potholes are "high".
+- Threshold 0.30 finds 37/45 on synthetic, 0.15 finds 42/45 (no false ones there, but real roads differ).
+- Still undecided: camera model, flight controller (→ mission export GeoJSON / QGC .plan in the planner).
+- PLAN.md's old Sprint 2 section ends with stray Sprint 1 notes (below S2-10) that belong under S1-22.
+
+Possible next work (ask the user): Sprint 2 proper (much of S2-01…S2-08 now exists in `geo/`; remaining:
+Pi capture skeleton with a simulate mode, tilt/lens handling, real telemetry reader once the flight
+controller is chosen), Sprint 3 backend (SQLite instead of JSON files), mission export, or Sprint 5 field
+photos.
 
 ---
 
@@ -139,9 +160,8 @@ I'm continuing my pothole-detecting drone project. Before doing anything, read H
 history and results) and README.md (how to run). Also check models/pothole_v1/README.txt.
 
 Summarise back to me in a few lines: what the project is, what is finished (Sprint 1 detector +
-demo portal), the final model and its results, and what comes next. Then continue with the next
-step from HANDOFF.md section 9 (Sprint 2: capture & geolocation). Ask me the open questions first
-(Pi camera model, flight altitude, flight controller) and propose the Sprint 2 plan as small serial
-steps with checks, like Sprint 1. Ask before any download, and keep PLAN.md's progress updated
-after every step.
+demo portal, dashboard demo website), the final model and its results, and the open points in
+HANDOFF section 9. Then ask me what I want to work on next. Plan any new work as small serial steps
+with checks, like Sprint 1. Ask before any download, and keep PLAN.md's progress updated after
+every step.
 ```

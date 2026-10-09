@@ -7,6 +7,9 @@ Step-by-step plan and progress: [PLAN.md](PLAN.md). New session? Start with [HAN
 **Sprint 1 (done): the pothole detector** — YOLO11s, single class `pothole`, runs on the ground
 after the flight. Final model: [`models/pothole_v1/`](models/pothole_v1/README.txt).
 
+**Dashboard demo (done):** route planner, results map and flight upload in `web/`, built on a first
+geolocation module in `geo/` and tested on a synthetic flight. See [Dashboard demo](#dashboard-demo-how-the-final-product-will-look).
+
 ## Setup (Windows, CPU)
 
 ```bash
@@ -50,6 +53,64 @@ cd app/frontend && npm install && npm run build && cd ../..    # React UI -> app
   ~1 s (small images) to ~20 s (4K frames) on CPU the first time.
 - Red box = detection, orange = detection that matches no labelled pothole, green dashed = label.
 - UI development with hot reload: `cd app/frontend && npm run dev` (port 5173, API proxied to 8000).
+
+## Dashboard demo (how the final product will look)
+
+A separate web app (`web/`, FastAPI + React + Leaflet) with three pages:
+
+- **Plan route**: click on the map to draw the road to fly (drag or click a waypoint to move or delete it).
+  The page shows route length, flight time, number of photos, ground strip width, photo spacing and
+  cm per pixel for the chosen altitude, speed, overlap and camera. Camera settings default to the
+  synthetic test camera because the real camera isn't chosen yet. Mission export comes later.
+- **Results map**: the flight track and one pin per pothole, coloured by severity (low / medium / high by
+  diameter; dashed = unverified, low confidence). Click a pin for the photo crop, size, area, confidence,
+  number of photos, time, flight and location. Filters, GeoJSON / CSV download, and streets / satellite
+  basemaps.
+- **Flights**: upload a flight zip. The server runs the detector on every photo, geolocates each detection
+  and merges repeats into one pothole, showing a progress bar. The page also lists every flight.
+
+```bash
+# one-time setup
+.venv\Scripts\python.exe web/tools/make_synthetic_flight.py          # demo flight -> web/data/flights/synthetic_001 + dist/synthetic_flight_001.zip
+.venv\Scripts\python.exe geo/process_flight.py web/data/flights/synthetic_001   # ~2 min on CPU
+cd web/frontend && npm install && npm run build && cd ../..
+# run, then open http://127.0.0.1:8001
+.venv\Scripts\python.exe web/backend/main.py
+```
+
+To demo an upload, upload `dist/synthetic_flight_001.zip` on the Flights page.
+Basemap tiles come from OpenStreetMap and Esri World Imagery, so the pages need internet access.
+
+**Flight folder / upload zip format** (see `geo/flight.py`):
+- `images/`: one photo per frame.
+- `frames.csv`: frame, image, timestamp.
+- `telemetry.csv`: timestamp, lat, lon, alt_m (height above the road), heading_deg.
+- `flight.json` (optional): name, `camera.hfov_deg`.
+
+Settings (camera field of view, telemetry smoothing, detector threshold, merge radius, severity
+thresholds) are in `geo/config.yaml`.
+
+**How a pin is made:**
+1. The detector runs at threshold 0.30.
+2. Each box is geolocated from the telemetry at the photo's timestamp (smoothed over 1 s), the altitude, the
+   camera field of view and the heading. The model assumes the camera points straight down, with no lens
+   distortion.
+3. Detections from different photos within 1 m of each other are merged. A pothole is kept only if it is
+   seen in at least 2 photos.
+
+Results on the synthetic flight (`python geo/eval_synthetic.py flight`; 45 true potholes):
+
+| Threshold | Found | False | Location error (median / max) |
+|---|---|---|---|
+| 0.15 | 42 | 0 | 0.10 / 0.25 m |
+| **0.30** | 37 | 0 | 0.10 / 0.23 m |
+| 0.50 | 22 | 0 | 0.12 / 0.26 m |
+
+Caveats:
+- The synthetic road is easy, so these numbers say nothing about false alarms on real roads.
+- Detector boxes are about 1.33× the pothole, so sizes are multiplied by `box_scale: 0.75`. That factor
+  was measured on this same synthetic flight and must be re-measured on real drone photos.
+- The synthetic road is simulated and does not line up with a real road on the basemap.
 
 ## Data pipeline
 
